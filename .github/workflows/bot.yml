@@ -1,4 +1,4 @@
-name: Bot to Respond to Issues
+name: Dynamic Issue Response Bot
 
 on:
   issues:
@@ -8,9 +8,45 @@ jobs:
   respond_to_issue:
     runs-on: ubuntu-latest
     steps:
-    - name: Send a response to the issue
+    - name: Check out the repo
+      uses: actions/checkout@v3
+
+    - name: Analyze issue content and label
+      id: issue_content
       run: |
-        ISSUE_NUMBER=${{ github.event.issue.number }}
-        curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-        -d '{"body": "Thank you for opening an issue. We will look into it!"}' \
-        https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUMBER/comments
+        ISSUE_TITLE="${{ github.event.issue.title }}"
+        ISSUE_BODY="${{ github.event.issue.body }}"
+
+        # Initialize label and response variables
+        LABEL=""
+        RESPONSE=""
+
+        # Check for keywords in issue title and body
+        if [[ "$ISSUE_TITLE" == *bug* ]] || [[ "$ISSUE_BODY" == *bug* ]] || [[ "$ISSUE_BODY" == *error* ]]; then
+          LABEL="bug"
+          RESPONSE="Thank you for reporting a bug. Our team will look into it."
+        elif [[ "$ISSUE_TITLE" == *feature* ]] || [[ "$ISSUE_BODY" == *feature* ]] || [[ "$ISSUE_BODY" == *enhancement* ]]; then
+          LABEL="feature request"
+          RESPONSE="Thanks for suggesting a feature! We appreciate your input."
+        else
+          LABEL="question"
+          RESPONSE="Thanks for the question. We'll respond as soon as possible."
+        fi
+
+        # Export the label and response for the next step
+        echo "LABEL=$LABEL" >> $GITHUB_ENV
+        echo "RESPONSE=$RESPONSE" >> $GITHUB_ENV
+
+    - name: Apply label to the issue
+      run: |
+        curl -X POST -H "Authorization: token ${{ secrets.BOT_TOKEN }}" \
+        -H "Accept: application/vnd.github.v3+json" \
+        https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/labels \
+        -d "{\"labels\":[\"${{ env.LABEL }}\"]}"
+
+    - name: Post a custom comment
+      run: |
+        curl -X POST -H "Authorization: token ${{ secrets.BOT_TOKEN }}" \
+        -H "Accept: application/vnd.github.v3+json" \
+        https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments \
+        -d "{\"body\": \"${{ env.RESPONSE }}\"}"
