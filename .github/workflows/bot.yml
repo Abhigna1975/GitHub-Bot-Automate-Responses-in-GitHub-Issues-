@@ -11,6 +11,11 @@ jobs:
     - name: Check out the repo
       uses: actions/checkout@v3
 
+    - name: Set up Node.js 20
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+
     - name: Analyze issue content and label
       id: issue_content
       run: |
