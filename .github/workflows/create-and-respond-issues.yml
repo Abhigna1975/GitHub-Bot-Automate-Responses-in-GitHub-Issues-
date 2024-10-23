@@ -1,0 +1,29 @@
+name: Create and Respond to Issues
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  create_and_respond:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Checkout the repository
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # Create a comment on the newly opened issue
+    - name: Respond to new issue
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GitHub provides a default token for workflows
+      run: |
+        ISSUE_NUMBER=${{ github.event.issue.number }}
+        REPO_NAME=${{ github.repository }}
+        COMMENT="Thank you for opening an issue! We will review it and get back to you as soon as possible."
+
+        curl -X POST \
+          -H "Authorization: token $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github.v3+json" \
+          https://api.github.com/repos/$REPO_NAME/issues/$ISSUE_NUMBER/comments \
+          -d "{\"body\": \"$COMMENT\"}"
